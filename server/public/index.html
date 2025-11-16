@@ -1,66 +1,37 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ESP32-CAM Live Stream</title>
+  <title>ESP32-CAM Live</title>
   <style>
-    body {
-      background: #111;
-      color: white;
-      font-family: Arial;
-      text-align: center;
-      margin: 0;
-      padding: 0;
-    }
-    #feed {
-      width: 90vw;
-      max-width: 600px;
-      margin-top: 20px;
-      border: 2px solid #444;
-      border-radius: 10px;
-    }
-    #status {
-      margin-top: 10px;
-      font-size: 18px;
-      color: #0f0;
-    }
+    body { background:#000; margin:0; display:flex; justify-content:center; 
+           align-items:center; height:100vh; color:white; flex-direction:column; }
+    img { width:100%; max-width:900px; border:3px solid #444; }
+    #status { margin-top:10px; font-size:18px; }
   </style>
 </head>
+
 <body>
+  <img id="video" src="latest.jpg">
+  <div id="status">Waiting for camera…</div>
 
-  <h1>ESP32-CAM Live Viewer</h1>
-  <p id="status">Waiting for camera...</p>
-
-  <img id="feed" src="" alt="Camera Feed">
-
-<script>
-
-// refresh image every 300ms
-const feed = document.getElementById("feed");
-const statusDiv = document.getElementById("status");
-
-function refreshFrame() {
-  feed.src = "/latest.jpg?t=" + Date.now();   // Prevent caching
-}
-
-setInterval(refreshFrame, 300);
-
-// Check if frame exists
-async function checkStatus() {
-  try {
-    const res = await fetch("/latest.jpg", { method: "HEAD" });
-    if (res.status === 200) {
-      statusDiv.innerText = "📸 Camera Connected";
-    } else {
-      statusDiv.innerText = "❗ Waiting for camera upload...";
+  <script>
+    function refreshFrame() {
+      document.getElementById("video").src = "latest.jpg?t=" + Date.now();
     }
-  } catch {
-    statusDiv.innerText = "❗ No connection to server";
-  }
-}
 
-setInterval(checkStatus, 1000);
+    function checkStatus() {
+      fetch("latest.jpg", { method: "HEAD" })
+        .then(res => {
+          if (res.ok) document.getElementById("status").textContent = "📡 LIVE";
+          else document.getElementById("status").textContent = "⏳ No Signal";
+        })
+        .catch(() => {
+          document.getElementById("status").textContent = "❌ Error";
+        });
+    }
 
-</script>
-
+    setInterval(refreshFrame, 120); // ≈8 FPS
+    setInterval(checkStatus, 1500);
+  </script>
 </body>
 </html>
