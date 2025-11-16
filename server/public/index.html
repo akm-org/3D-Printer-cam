@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>ESP32-CAM Stream</title>
+  <style>
+    body { background:#000; margin:0; display:flex; 
+           justify-content:center; align-items:center; height:100vh; }
+    img { width:100%; max-width:800px; border:3px solid #444; }
+  </style>
+</head>
+<body>
+  <img id="video" src="/stream.jpg">
+  <script>
+    setInterval(() => {
+      document.getElementById("video").src = "/stream.jpg?t=" + Date.now();
+    }, 150); // ~7 FPS
+  </script>
+</body>
+</html>
