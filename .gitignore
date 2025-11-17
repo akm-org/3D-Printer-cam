@@ -1,0 +1,10 @@
+node_modules/
+npm-debug.log
+.DS_Store
+.env
+.cache/
+.upm/
+.local/
+.config/
+replit.nix
+.replit
