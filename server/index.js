@@ -12,19 +12,14 @@ const upload = multer();
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
 
-app.post("/upload", (req, res, next) => {
-  console.log("Upload request received");
-  console.log("Headers:", req.headers);
-  console.log("Content-Type:", req.headers['content-type']);
-  next();
-}, upload.single("frame"), (req, res) => {
-  if (!req.file) {
-    console.log("No file received in upload");
-    console.log("Body:", req.body);
+app.post("/upload", express.raw({ type: 'image/jpeg', limit: '10mb' }), (req, res) => {
+  if (!req.body || req.body.length === 0) {
+    console.log("No image data received");
     return res.status(400).send("No image received");
   }
-  latestImage = req.file.buffer;
-  console.log(`✅ Image received: ${req.file.buffer.length} bytes`);
+  
+  latestImage = req.body;
+  console.log(`✅ Image received: ${req.body.length} bytes`);
   res.send("OK");
 });
 

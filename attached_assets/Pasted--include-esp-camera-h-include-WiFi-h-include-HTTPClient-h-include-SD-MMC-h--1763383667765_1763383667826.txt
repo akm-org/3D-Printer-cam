@@ -1,0 +1,156 @@
+#include "esp_camera.h"
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include "SD_MMC.h"
+
+// ======= CHANGE THESE =======
+const char* ssid = "Elayidam_Hub_2.4";
+const char* password = "El4y1d@m#Root";
+String uploadURL = "https://threed-printer-cam.onrender.com/upload";
+// ============================
+
+// Store images on SD when upload fails
+int photoCounter = 0;
+
+// Camera configuration
+camera_config_t config = {
+  .pin_pwdn = 32,
+  .pin_reset = -1,
+  .pin_xclk = 0,
+  .pin_sscb_sda = 26,
+  .pin_sscb_scl = 27,
+  .pin_d7 = 35,
+  .pin_d6 = 34,
+  .pin_d5 = 39,
+  .pin_d4 = 36,
+  .pin_d3 = 21,
+  .pin_d2 = 19,
+  .pin_d1 = 18,
+  .pin_d0 = 5,
+  .pin_vsync = 25,
+  .pin_href = 23,
+  .pin_pclk = 22,
+  .xclk_freq_hz = 20000000,
+  .ledc_timer = LEDC_TIMER_0,
+  .ledc_channel = LEDC_CHANNEL_0,
+  .pixel_format = PIXFORMAT_JPEG,
+  .frame_size = FRAMESIZE_VGA,
+  .jpeg_quality = 12,
+  .fb_count = 1
+};
+
+void connectWiFi() {
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  Serial.print("Connecting to WiFi ");
+  Serial.println(ssid);
+
+  int tries = 0;
+  while (WiFi.status() != WL_CONNECTED && tries < 30) {
+    Serial.print(".");
+    delay(500);
+    tries++;
+  }
+
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.print("\nWiFi connected, IP: ");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("\nWiFi failed! Restarting...");
+    ESP.restart();
+  }
+}
+
+bool uploadPhoto(camera_fb_t *fb) {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi lost, reconnecting...");
+    connectWiFi();
+  }
+
+  HTTPClient http;
+  http.setTimeout(8000);       // 8 sec timeout
+  http.setConnectTimeout(5000);
+  http.addHeader("Content-Type", "image/jpeg");
+
+  Serial.println("Uploading...");
+
+  http.begin(uploadURL);
+  int code = http.POST(fb->buf, fb->len);
+
+  Serial.print("sendRequest returned ");
+  Serial.println(code);
+
+  if (code == 200) {
+    Serial.println("Upload attempt: OK");
+    http.end();
+    return true;
+  }
+
+  Serial.println("Upload attempt: FAIL");
+  http.end();
+  return false;
+}
+
+void saveToSD(camera_fb_t *fb) {
+  if (!SD_MMC.begin()) {
+    Serial.println("SD mount failed!");
+    return;
+  }
+
+  String filename = "/tl_" + String(photoCounter++) + ".jpg";
+  File file = SD_MMC.open(filename, FILE_WRITE);
+
+  if (!file) {
+    Serial.println("Failed to create file");
+    return;
+  }
+
+  file.write(fb->buf, fb->len);
+  file.close();
+
+  Serial.print("Saved to SD: ");
+  Serial.print(filename);
+  Serial.print(" (");
+  Serial.print(fb->len);
+  Serial.println(" bytes)");
+}
+
+void setup() {
+  Serial.begin(115200);
+  delay(1000);
+
+  connectWiFi();
+
+  if (esp_camera_init(&config) != ESP_OK) {
+    Serial.println("Camera initialization failed!");
+    ESP.restart();
+  }
+
+  Serial.println("Camera initialized");
+
+  if (SD_MMC.begin("/sdcard", true)) {
+    Serial.println("SD_MMC mounted");
+  } else {
+    Serial.println("SD_MMC mount failed");
+  }
+}
+
+void loop() {
+  camera_fb_t *fb = esp_camera_fb_get();
+
+  if (!fb) {
+    Serial.println("Failed to capture");
+    return;
+  }
+
+  bool ok = uploadPhoto(fb);
+
+  if (!ok) {
+    saveToSD(fb);
+  }
+
+  esp_camera_fb_return(fb);
+
+  delay(5000);  // every 5 seconds
+}
